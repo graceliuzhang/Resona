@@ -6,7 +6,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # change if needed
+    allow_origins=["*"], # change if needed
     allow_credentials=False, 
     allow_methods=["*"], 
     allow_headers=["*"],
@@ -21,4 +21,9 @@ def read_root():
 def read_item(item_id: int, q: str | None = None):
     return {"item_id": item_id, "q": q}
 
-app.include_router(artist.router)
+
+
+# cd backend
+# pip install python-dotenv
+# poetry install
+# pip install httpx
