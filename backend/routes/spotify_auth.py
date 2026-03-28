@@ -7,47 +7,49 @@ from services.spotify_service import (
     get_user_profile,
     get_top_artists
 )
-
-from services.supabase_service import insert_user
+from services.supabase_service import insert_user, get_user
+from services.genre import extract_genres_from_artists
 
 router = APIRouter()
 
 
 @router.get("/login")
 def spotify_login():
-
     url = get_auth_url()
-
     return RedirectResponse(url)
 
 
 @router.get("/callback")
 def spotify_callback(code: str):
+    try:
+        token_data = exchange_code_for_token(code)
+        access_token = token_data["access_token"]
+        refresh_token = token_data["refresh_token"]
 
-    token_data = exchange_code_for_token(code)
+        profile = get_user_profile(access_token)
+        artist_items = get_top_artists(access_token).get("items", [])
+        top_artists = artist_items[:3]
 
-    access_token = token_data["access_token"]
-    refresh_token = token_data["refresh_token"]
+        # safely extract all genres from top artists
+        all_genres = []
+        for artist in top_artists:
+            artist_genres = artist.get("genres") or []
+            if isinstance(artist_genres, list):
+                all_genres.extend(artist_genres)
 
-    profile = get_user_profile(access_token)
+        user_data = {
+            "spotify_id": profile.get("id"),
+            "display_name": profile.get("display_name"),
+            "email": profile.get("email"),
+            "top_artists": top_artists,  # full objects
+            "genres": all_genres,
+            "access_token": access_token,
+            "refresh_token": refresh_token
+        }
 
-    artists = get_top_artists(access_token)
+        insert_user(user_data)
+        return {"top_artists": top_artists, "genres": all_genres}
 
-    genres = []
-    for artist in artists["items"]:
-        genres.extend(artist["genres"])
-
-    user_data = {
-        "spotify_id": profile["id"],
-        "display_name": profile["display_name"],
-        "email": profile["email"],
-        "avatar_url": profile["images"][0]["url"] if profile["images"] else None,
-        "top_artists": artists["items"],
-        "genres": list(set(genres)),
-        "access_token": access_token,
-        "refresh_token": refresh_token
-    }
-
-    insert_user(user_data)
-
-    return {"message": "User stored successfully"}
+    except Exception as e:
+        # DEBUG: return the exact error and payload
+        return {"error": str(e), "profile": profile, "artists": artist_items}
