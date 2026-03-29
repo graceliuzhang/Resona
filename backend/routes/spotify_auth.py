@@ -28,7 +28,7 @@ def spotify_callback(code: str):
 
         profile = get_user_profile(access_token)
         artist_items = get_top_artists(access_token).get("items", [])
-        top_artists = artist_items[:4]
+        top_artists = artist_items[:3]
 
         # safely extract all genres from top artists
         all_genres = []
