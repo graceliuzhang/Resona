@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
+from services.lastfm_service import get_artist_genres
 
 from services.spotify_service import (
     get_auth_url,
@@ -28,28 +29,24 @@ def spotify_callback(code: str):
 
         profile = get_user_profile(access_token)
         artist_items = get_top_artists(access_token).get("items", [])
-        top_artists = artist_items[:3]
 
-        # safely extract all genres from top artists
+        top_artist_names = [artist["name"] for artist in artist_items[:3]]  # names only
+
         all_genres = []
-        for artist in top_artists:
-            artist_genres = artist.get("genres") or []
-            if isinstance(artist_genres, list):
-                all_genres.extend(artist_genres)
-
+        for name in top_artist_names:
+            all_genres.extend(get_artist_genres(name))
+        all_genres = list(set(all_genres))  # deduplicate
         user_data = {
             "spotify_id": profile.get("id"),
             "display_name": profile.get("display_name"),
             "email": profile.get("email"),
-            "top_artists": top_artists,  # full objects
+            "top_artists": top_artist_names,  # names instead of full objects
             "genres": all_genres,
             "access_token": access_token,
             "refresh_token": refresh_token
         }
 
         insert_user(user_data)
-        return {"top_artists": top_artists, "genres": all_genres}
-
+        return {"top_artists": top_artist_names, "genres": all_genres}
     except Exception as e:
-        # DEBUG: return the exact error and payload
-        return {"error": str(e), "profile": profile, "artists": artist_items}
+        return {"error": str(e)}
