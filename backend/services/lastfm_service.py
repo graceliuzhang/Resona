@@ -12,4 +12,4 @@ def get_artist_genres(artist_name: str) -> list[str]:
         "format": "json"
     })
     tags = response.json().get("toptags", {}).get("tag", [])
-    return [tag["name"] for tag in tags[:5]]  # top 5 tags
+    return [tag["name"].lower() for tag in tags[:5]]

@@ -35,7 +35,7 @@ def spotify_callback(code: str):
         all_genres = []
         for name in top_artist_names:
             all_genres.extend(get_artist_genres(name))
-        all_genres = list(set(all_genres))  # deduplicate
+        all_genres = list(set(all_genres))[:5] # deduplicate
         user_data = {
             "spotify_id": profile.get("id"),
             "display_name": profile.get("display_name"),
