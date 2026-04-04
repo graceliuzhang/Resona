@@ -1,48 +1,38 @@
-from fastapi import APIRouter
-from services.room_service import (
+from fastapi import APIRouter, HTTPException, Request
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import Request
+from services.supabase_service import (
     create_room,
-    get_all_rooms,
     join_room,
-    leave_room,
-    get_room_members
+    get_room,
+    get_user,
 )
-
 router = APIRouter()
+from services.spotify_service import get_user_profile
 
+from pydantic import BaseModel
 
-# Get all rooms
-@router.get("/")
-def list_rooms():
-    rooms = get_all_rooms()
-    return {"rooms": rooms}
+class CreateRoomRequest(BaseModel):
+    genre: str
 
-@router.post("/create")
-def create(name: str, genre_tags: list[str], host_id: str):
+@router.post("/rooms")
+def create_room_route(request: Request, body: CreateRoomRequest, access_token: str = None):
+    token = access_token or request.session.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    profile = get_user_profile(token)
+    host_id = profile["id"]
+    room = create_room(host_id, body.genre)
+    return {"room": room}
 
-    room = create_room(name, genre_tags, host_id)
+@router.post("/rooms/{room_id}/join")
+def join_room_route(room_id: str, user_id: str):
+    join_room(room_id, user_id)
+    return {"message": "Joined room successfully"}
 
-    return {
-        "message": "room created",
-        "room": room
-    }
-
-
-# Join a room
-@router.post("/join")
-def join(room_id: str, user_id: str):
-    data = join_room(room_id, user_id)
-    return {"message": "joined room", "data": data}
-
-
-# Leave a room
-@router.post("/leave")
-def leave(room_id: str, user_id: str):
-    data = leave_room(room_id, user_id)
-    return {"message": "left room", "data": data}
-
-
-# Get members in a room
-@router.get("/members")
-def members(room_id: str):
-    members = get_room_members(room_id)
-    return {"members": members}
+@router.get("/rooms/{room_id}")
+def get_room_route(room_id: str):
+    room = get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return {"room": room}

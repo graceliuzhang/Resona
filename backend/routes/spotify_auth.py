@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 from services.lastfm_service import get_artist_genres
+from starlette.requests import Request
 
 from services.spotify_service import (
     get_auth_url,
@@ -26,6 +27,7 @@ def spotify_callback(code: str):
         token_data = exchange_code_for_token(code)
         access_token = token_data["access_token"]
         refresh_token = token_data["refresh_token"]
+        request.session["access_token"] = access_token
 
         profile = get_user_profile(access_token)
         artist_items = get_top_artists(access_token).get("items", [])
@@ -47,6 +49,7 @@ def spotify_callback(code: str):
         }
 
         insert_user(user_data)
+        return {"access_token": access_token, "top_artists": top_artist_names, "genres": all_genres}
         return {"top_artists": top_artist_names, "genres": all_genres}
     except Exception as e:
         return {"error": str(e)}
